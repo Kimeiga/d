@@ -27,9 +27,9 @@ func createHTML(entry Entry, folderPath string) {
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-	fmt.Fprintf(writer, "<h1>%s</h1>\n<p>Simplified: %s</p>\n<p>Traditional: %s</p>\n<p>Pinyin: %s</p>\n", entry.Simplified, entry.Simplified, entry.Traditional, entry.Pinyin)
+	fmt.Fprintf(writer, "<h1>%s</h1>\r\n<p>Simplified: %s</p>\r\n<p>Traditional: %s</p>\r\n<p>Pinyin: %s</p>", entry.Simplified, entry.Simplified, entry.Traditional, entry.Pinyin)
 	for _, def := range entry.Definitions {
-		fmt.Fprintf(writer, "<p>%s</p>\n", def)
+		fmt.Fprintf(writer, "<p>%s</p>\r\n", def)
 	}
 	writer.Flush()
 }
@@ -47,8 +47,29 @@ func deleteFilesInFolder(folderPath string) {
 	}
 }
 
+func printProgress(progress, total int) {
+	// Calculate percentage
+	percent := float64(progress) / float64(total) * 100
+	// Calculate number of blocks to represent progress
+	blocks := int(percent / 2)
+
+	// Print the progress bar
+	fmt.Printf("\r[")
+	for i := 0; i < blocks; i++ {
+		fmt.Print("=")
+	}
+	for i := 0; i < 50-blocks; i++ {
+		fmt.Print(" ")
+	}
+	fmt.Printf("] %3.0f%%", percent)
+
+	if progress == total {
+		fmt.Println() // Print a newline at 100%
+	}
+}
+
 func main() {
-	buildFolder := "build"
+	buildFolder := "docs"
 
 	err := os.MkdirAll(buildFolder, os.ModePerm)
 	if err != nil {
@@ -118,13 +139,28 @@ func main() {
 		return
 	}
 
+	total := len(entries) // Get the total number of entries
+	var progress int
+	var printMutex sync.Mutex
+
+	// Create a semaphore channel to limit concurrent goroutines
+	sem := make(chan bool, 64) // 20 is the number of concurrent goroutines allowed
+
 	var wg sync.WaitGroup
 
 	for _, entry := range entries {
 		wg.Add(1)
+		sem <- true // Acquire a token
 		go func(e Entry) {
 			defer wg.Done()
 			createHTML(e, buildFolder)
+
+			progress++
+			printMutex.Lock()
+			printProgress(progress, total)
+			printMutex.Unlock()
+
+			<-sem // Release the token
 		}(entry)
 
 		// Add the link to the index file
