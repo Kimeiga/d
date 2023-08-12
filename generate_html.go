@@ -11,10 +11,10 @@ import (
 )
 
 type Entry struct {
-	Traditional string   `json:"traditional"`
-	Simplified  string   `json:"simplified"`
-	Pinyin      string   `json:"pinyin"`
-	Definitions []string `json:"definitions"`
+	Traditional string            `json:"traditional"`
+	Simplified  string            `json:"simplified"`
+	Pinyin      []string          `json:"pinyin"`
+	Definitions map[string]string `json:"definitions"`
 }
 
 func createHTML(entry Entry, folderPath string) {
@@ -27,9 +27,10 @@ func createHTML(entry Entry, folderPath string) {
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-	fmt.Fprintf(writer, "<h1>%s</h1>\r\n<p>Simplified: %s</p>\r\n<p>Traditional: %s</p>\r\n<p>Pinyin: %s</p>", entry.Simplified, entry.Simplified, entry.Traditional, entry.Pinyin)
-	for _, def := range entry.Definitions {
-		fmt.Fprintf(writer, "<p>%s</p>\r\n", def)
+	fmt.Fprintf(writer, "<h1>%s</h1>\r\n<p>Simplified: %s</p>\r\n<p>Traditional: %s</p>", entry.Simplified, entry.Simplified, entry.Traditional)
+	for _, pinyin := range entry.Pinyin {
+		definition, _ := entry.Definitions[pinyin]
+		fmt.Fprintf(writer, "<p>Pinyin: %s</p>\r\n<p>%s</p>\r\n", pinyin, definition)
 	}
 	writer.Flush()
 }
